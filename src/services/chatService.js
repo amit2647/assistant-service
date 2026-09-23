@@ -4,7 +4,14 @@ const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 // Overridable because OpenRouter's catalog changes; the default is a model with
 // solid tool-calling.
-const MODEL = process.env.OPENROUTER_MODEL || "anthropic/claude-sonnet-4.5";
+const MODEL = process.env.OPENROUTER_MODEL;
+
+/*
+ * Without this the provider's own ceiling applies — 64k on some models, which
+ * is both billed against the account's headroom and far more than a chat reply
+ * needs.
+ */
+const MAX_TOKENS = Number(process.env.OPENROUTER_MAX_TOKENS || 1024);
 
 // Each round trip is one model call plus its tool results. Reads chain (look up
 // a lead, then its emails); this stops a loop from running away.
@@ -77,6 +84,7 @@ async function callModel(messages, tools) {
       model: MODEL,
       messages,
       ...(tools.length > 0 ? { tools: toolSchema(tools), tool_choice: "auto" } : {}),
+      max_tokens: MAX_TOKENS,
       temperature: 0.2,
     }),
   });
@@ -167,7 +175,13 @@ async function runTurn({ auth, token, history, confirm }) {
     const calls = message.tool_calls || [];
 
     if (calls.length === 0) {
-      return { reply: message.content || "", steps, pendingAction: null };
+      return {
+        // A model can end a turn with nothing to say; the panel would render a
+        // blank bubble, which reads as the assistant having broken.
+        reply: (message.content || "").trim() || "I don't have an answer for that.",
+        steps,
+        pendingAction: null,
+      };
     }
 
     messages.push(message);
