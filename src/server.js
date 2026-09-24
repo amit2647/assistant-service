@@ -13,7 +13,9 @@ async function startServer() {
 
     if (!process.env.OPENROUTER_API_KEY) {
       console.warn(
-        "[Assistant Service] OPENROUTER_API_KEY is not set — the assistant will answer 503 until it is.",
+        "[Assistant Service] OPENROUTER_API_KEY is not set — the assistant will answer 503 " +
+          "until it is. Set it in the parent repo's .env; it is read from there only, not " +
+          "from the shell environment.",
       );
     }
 
