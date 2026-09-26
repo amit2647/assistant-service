@@ -20,4 +20,9 @@ jobs:
 
       - run: npm ci --no-audit --no-fund
 
+      - run: npm run lint
+
+      # Fails on a high or critical advisory in what ships (not dev tools).
+      - run: npm audit --omit=dev --audit-level=high
+
       - run: npm test
