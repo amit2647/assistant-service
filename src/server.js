@@ -3,12 +3,13 @@ require("dotenv").config();
 const app = require("./app");
 const { testDatabaseConnection } = require("./config/database");
 const { MODEL } = require("./services/chatService");
+const embeddingWorker = require("./services/embeddingWorker");
 
 const PORT = Number(process.env.PORT || 4007);
 
 async function startServer() {
   try {
-    // Only used to read active just-in-time grants when authenticating.
+    // Holds conversations, and is read for just-in-time grants on every request.
     await testDatabaseConnection();
 
     if (!process.env.OPENROUTER_API_KEY) {
@@ -22,6 +23,10 @@ async function startServer() {
     app.listen(PORT, () => {
       console.log(`Assistant Service running on port ${PORT} (model: ${MODEL})`);
     });
+
+    // Not awaited: Qdrant being down must not stop the assistant answering. The
+    // worker retries, and new messages wait in the outbox until it is back.
+    embeddingWorker.start();
   } catch (error) {
     console.error("[Assistant Service] Startup failed:", error);
     process.exit(1);

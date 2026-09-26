@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 
 const chatRoutes = require("./routes/chatRoutes");
+const conversationRoutes = require("./routes/conversationRoutes");
 const mcpRoutes = require("./routes/mcpRoutes");
 const requestLogger = require("./middleware/requestLogger");
 
@@ -22,6 +23,7 @@ app.get("/health", (req, res) => {
 });
 
 app.use("/", chatRoutes);
+app.use("/", conversationRoutes);
 app.use("/", mcpRoutes);
 
 app.use((req, res) => {
