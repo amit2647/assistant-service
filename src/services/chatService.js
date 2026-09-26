@@ -1,6 +1,13 @@
 const { toolsFor, getTool } = require("./toolCatalog");
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+/*
+ * Overridable only so the integration tests can point the assistant at a
+ * scripted stand-in (tests/fake-openrouter in the parent repo) instead of a
+ * real, billed model. Production leaves it unset.
+ */
+const OPENROUTER_BASE_URL = (process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1").replace(/\/$/, "");
+
+const OPENROUTER_URL = `${OPENROUTER_BASE_URL}/chat/completions`;
 
 // Overridable because OpenRouter's catalog changes; the default is a model with
 // solid tool-calling.
