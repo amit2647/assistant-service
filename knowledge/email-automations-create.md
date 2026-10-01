@@ -5,4 +5,4 @@ permission: email.automations.create
 
 ## Creating an automation
 
-On Settings, Email Automations, press "+ New Automation". Choose the event and the template to send, then switch it on when you are ready.
+On Settings, Email Automations, press "+ New Automation". Choose the event, the template to send and, under Send from, the email account it sends from, then switch it on when you are ready.
