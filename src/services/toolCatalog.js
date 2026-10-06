@@ -24,6 +24,9 @@ const SERVICE = process.env.SERVICE_SERVICE_URL || "http://service-service:4003"
 const DASHBOARD = process.env.DASHBOARD_SERVICE_URL || "http://dashboard-service:4005";
 const EMAIL = process.env.EMAIL_SERVICE_URL || "http://email-service:4006";
 const IDENTITY = process.env.IDENTITY_SERVICE_URL || "http://identity-service:4004";
+const ENGAGEMENT = process.env.ENGAGEMENT_SERVICE_URL || "http://engagement-service:4009";
+const OBLIGATION = process.env.OBLIGATION_SERVICE_URL || "http://obligation-service:4010";
+const DOCUMENT = process.env.DOCUMENT_SERVICE_URL || "http://document-service:4011";
 
 async function callService(token, method, url, body) {
   const response = await fetch(url, {
@@ -533,6 +536,155 @@ const TOOLS = [
   },
 
   /* ----------------------------------------------------------- help */
+  /* ------------------------------------------- profession bundle (M7) */
+  // Offered only to an organization whose installed bundle has the
+  // capability (or, for needsBundle, any bundle). No vault tool exists:
+  // portal passwords never reach the model.
+  {
+    name: "list_obligations",
+    permission: "obligations.read",
+    capability: "obligations",
+    description:
+      "List compliance deadlines across clients: overdue, due soon (within 30 days), in progress, upcoming or completed, for a financial year (default: the current one). Use it for any question about what is due, late or filed.",
+    parameters: {
+      type: "object",
+      properties: {
+        state: { type: "string", enum: ["overdue", "due_soon", "in_progress", "upcoming", "completed"], description: "Only deadlines in this state" },
+        period: { type: "string", description: "Financial year, e.g. 2026-27" },
+        customerId: { type: "integer", description: "Only this client's deadlines" },
+      },
+    },
+    run: async (ctx, args) => {
+      const result = await callService(ctx.token, "GET", `${OBLIGATION}/obligations${query({ state: args.state, period: args.period, customerId: args.customerId })}`);
+      if (!result.ok) return result;
+
+      const fields = ["id", "title", "customer_id", "customer_name", "service_name", "due_on", "state", "status"];
+      const items = (result.data?.items || []).slice(0, 50).map((item) => Object.fromEntries(fields.filter((field) => field in item).map((field) => [field, item[field]])));
+
+      return { ok: true, data: { today: result.data?.today, counts: result.data?.counts, items, more: Math.max(0, (result.data?.items || []).length - items.length) } };
+    },
+  },
+  {
+    name: "get_client_profile",
+    permission: "customers.read",
+    needsBundle: true,
+    description: "Get one client's profile: constitution and other profession fields, identifiers such as PAN and CIN, people (directors, partners, signatory) and services. Bank accounts are not included.",
+    parameters: {
+      type: "object",
+      properties: { id: { type: "integer", description: "Client id" } },
+      required: ["id"],
+    },
+    run: async (ctx, args) => {
+      const result = await callService(ctx.token, "GET", `${CUSTOMER}/customers/${args.id}`);
+      if (!result.ok) return result;
+
+      const client = result.data || {};
+      return {
+        ok: true,
+        data: {
+          id: client.id,
+          name: client.name,
+          email: client.email,
+          phone: client.phone,
+          address: client.address,
+          attributes: client.attributes,
+          identifiers: client.identifiers,
+          people: (client.people || []).map((person) => ({ name: person.name, role: person.role, designation: person.designation, is_signatory: person.is_signatory })),
+          services: (client.services || []).map((service) => service.name),
+          locked: Boolean(client.locked_at),
+          archived: Boolean(client.archived_at),
+        },
+      };
+    },
+  },
+  {
+    name: "get_engagement",
+    permission: "engagements.read",
+    capability: "engagements",
+    description: "Get a client's engagements: the financial year, stage, appointment and AGM dates, services engaged and — when the user may see fees — fees, payments received and the balance.",
+    parameters: {
+      type: "object",
+      properties: {
+        customerId: { type: "integer", description: "Client id" },
+        period: { type: "string", description: "Financial year, e.g. 2026-27" },
+      },
+      required: ["customerId"],
+    },
+    run: async (ctx, args) =>
+      pick(
+        await callService(ctx.token, "GET", `${ENGAGEMENT}/engagements${query({ customerId: args.customerId, period: args.period })}`),
+        ["id", "periodLabel", "stage", "status", "appointmentOn", "lines", "totals"],
+      ),
+  },
+  {
+    name: "update_obligation_status",
+    permission: "obligations.update",
+    capability: "obligations",
+    write: true,
+    summarize: (args) => `Mark deadline #${args.id} as ${String(args.status || "").replace(/_/g, " ")}.`,
+    description: "Change a deadline's status: pending, in progress, filed or not applicable.",
+    parameters: {
+      type: "object",
+      properties: {
+        id: { type: "integer", description: "Deadline id" },
+        status: { type: "string", enum: ["pending", "in_progress", "filed", "not_applicable"] },
+      },
+      required: ["id", "status"],
+    },
+    run: (ctx, args) => callService(ctx.token, "PATCH", `${OBLIGATION}/obligations/${args.id}`, { status: args.status }),
+  },
+  {
+    name: "record_payment",
+    permission: "fees.update",
+    capability: "engagements",
+    write: true,
+    summarize: (args) => `Record a payment of ${args.amount} received on ${args.receivedOn} against engagement #${args.engagementId}.`,
+    description: "Record a fee payment received against a client's engagement.",
+    parameters: {
+      type: "object",
+      properties: {
+        engagementId: { type: "integer", description: "Engagement id" },
+        amount: { type: "number", description: "Amount received" },
+        receivedOn: { type: "string", description: "Date received, YYYY-MM-DD" },
+        method: { type: "string", description: "Bank transfer, UPI, Cheque, Cash or Card" },
+        reference: { type: "string", description: "UTR, cheque number or other reference" },
+      },
+      required: ["engagementId", "amount", "receivedOn"],
+    },
+    run: async (ctx, args) =>
+      pick(
+        await callService(ctx.token, "POST", `${ENGAGEMENT}/engagements/${args.engagementId}/payments`, {
+          amount: args.amount,
+          receivedOn: args.receivedOn,
+          method: args.method,
+          reference: args.reference,
+        }),
+        ["id", "amount", "received_on", "method", "reference", "totals"],
+      ),
+  },
+  {
+    name: "generate_document",
+    permission: "documents.generate",
+    capability: "documents",
+    write: true,
+    summarize: (args) => `Start a draft of the "${args.templateKey}" letter for client #${args.customerId}${args.period ? `, FY ${args.period}` : ""}.`,
+    description: "Start a draft letter for a client from one of the firm's document templates (for example the engagement letter). The draft is then completed and finalized on the client's Documents tab.",
+    parameters: {
+      type: "object",
+      properties: {
+        templateKey: { type: "string", description: "Template key, e.g. statutory_engagement_letter" },
+        customerId: { type: "integer", description: "Client id" },
+        period: { type: "string", description: "Financial year, e.g. 2026-27" },
+      },
+      required: ["templateKey", "customerId"],
+    },
+    run: async (ctx, args) =>
+      pick(
+        await callService(ctx.token, "POST", `${DOCUMENT}/documents`, { templateKey: args.templateKey, customerId: args.customerId, period: args.period }),
+        ["id", "title", "status", "template_version", "missing"],
+      ),
+  },
+
   {
     name: "search_help",
     // No permission of its own: the search inside is filtered to the
@@ -548,7 +700,7 @@ const TOOLS = [
       required: ["question"],
     },
     run: async (ctx, args) => {
-      const sections = await searchHelp(String(args.question || ""), ctx.auth.permissions);
+      const sections = await searchHelp(String(args.question || ""), ctx.auth.permissions, ctx.auth.bundle?.key || null);
 
       return {
         ok: true,
@@ -567,22 +719,34 @@ const BY_NAME = new Map(TOOLS.map((tool) => [tool.name, tool]));
  * where the tool filters by permission internally (search_help). Every tool
  * that reaches another service keeps a permission here.
  */
-function allowed(tool, held) {
+function allowed(tool, held, capabilities, hasBundle) {
+  if (tool.capability && !capabilities.has(tool.capability)) {
+    return false;
+  }
+
+  if (tool.needsBundle && !hasBundle) {
+    return false;
+  }
+
   return !tool.permission || held.has(tool.permission);
 }
+
+// The installed bundle's capabilities (req.auth.bundle), or none.
+const capabilitiesOf = (bundle) => new Set(bundle?.capabilities || []);
 
 /*
  * The tools this caller may use. Everything downstream — the model's tool list,
  * the MCP server's catalog, and execution — goes through this, so there is one
  * place where permission decides visibility.
  */
-function toolsFor(permissions) {
+function toolsFor(permissions, bundle = null) {
   const held = new Set(Array.isArray(permissions) ? permissions : []);
+  const capabilities = capabilitiesOf(bundle);
 
-  return TOOLS.filter((tool) => allowed(tool, held));
+  return TOOLS.filter((tool) => allowed(tool, held, capabilities, Boolean(bundle)));
 }
 
-function getTool(name, permissions) {
+function getTool(name, permissions, bundle = null) {
   const tool = BY_NAME.get(name);
 
   if (!tool) {
@@ -591,7 +755,7 @@ function getTool(name, permissions) {
 
   const held = new Set(Array.isArray(permissions) ? permissions : []);
 
-  return allowed(tool, held) ? tool : null;
+  return allowed(tool, held, capabilitiesOf(bundle), Boolean(bundle)) ? tool : null;
 }
 
 module.exports = { TOOLS, toolsFor, getTool, callService };

@@ -10,7 +10,7 @@ function bearer(req) {
 }
 
 function allowedTools(auth) {
-  return new Set(toolsFor(auth.permissions).map((tool) => tool.name));
+  return new Set(toolsFor(auth.permissions, auth.bundle).map((tool) => tool.name));
 }
 
 function clampLimit(value, fallback, max) {

@@ -1,6 +1,7 @@
 const express = require("express");
 
 const authenticate = require("../middleware/authenticate");
+const withBundle = require("../middleware/withBundle");
 const controller = require("../controllers/chatController");
 
 const router = express.Router();
@@ -12,6 +13,6 @@ const router = express.Router();
  *
  * Conversations themselves live in conversationRoutes.
  */
-router.get("/assistant/capabilities", authenticate, controller.capabilities);
+router.get("/assistant/capabilities", authenticate, withBundle, controller.capabilities);
 
 module.exports = router;

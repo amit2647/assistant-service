@@ -94,4 +94,27 @@ describe("product help", () => {
 
     assert.deepEqual(help, ["How to find leads", "Using the assistant"]);
   });
+
+  test("a bundle's help reaches only organizations that installed that bundle", async () => {
+    let filter;
+    vectorStore.search = async (collection, request) => {
+      filter = request.filter;
+      return points;
+    };
+    points = [
+      { payload: { content: "Core: using the assistant" } },
+      { payload: { content: "CA: compliance deadlines", bundle: "ca-practice" } },
+      { payload: { content: "Legal: hearings", bundle: "legal-practice" } },
+    ];
+
+    try {
+      assert.deepEqual(await searchHelp("how?", [], "ca-practice"), ["Core: using the assistant", "CA: compliance deadlines"]);
+      assert.deepEqual(filter.must[1].should, [{ is_empty: { key: "bundle" } }, { key: "bundle", match: { value: "ca-practice" } }]);
+
+      // Without a bundle: core help only.
+      assert.deepEqual(await searchHelp("how?", []), ["Core: using the assistant"]);
+    } finally {
+      vectorStore.search = async () => points;
+    }
+  });
 });

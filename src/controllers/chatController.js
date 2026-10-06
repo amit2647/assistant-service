@@ -7,7 +7,7 @@ const { toolsFor } = require("../services/toolCatalog");
  * the assistant would then refuse.
  */
 function capabilities(req, res) {
-  const tools = toolsFor(req.auth?.permissions);
+  const tools = toolsFor(req.auth?.permissions, req.auth?.bundle);
 
   return res.json({
     model: MODEL,

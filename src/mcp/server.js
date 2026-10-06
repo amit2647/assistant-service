@@ -28,7 +28,7 @@ function buildServer(auth, token) {
   );
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
-    tools: toolsFor(auth.permissions).map((tool) => ({
+    tools: toolsFor(auth.permissions, auth.bundle).map((tool) => ({
       name: tool.name,
       description: tool.write
         ? `${tool.description} (This changes data.)`
@@ -38,7 +38,7 @@ function buildServer(auth, token) {
   }));
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const tool = getTool(request.params.name, auth.permissions);
+    const tool = getTool(request.params.name, auth.permissions, auth.bundle);
 
     if (!tool) {
       return {

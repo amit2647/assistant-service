@@ -2,6 +2,7 @@ const { describe, test, afterEach, mock } = require("node:test");
 const assert = require("node:assert/strict");
 
 const { TOOLS, toolsFor, getTool } = require("../src/services/toolCatalog");
+const { systemPrompt } = require("../src/services/chatService");
 
 /*
  * The catalog is the assistant's whole capability surface, filtered by the
@@ -132,5 +133,49 @@ describe("what reaches the model provider", () => {
     const result = await getTool("list_leads", ["leads.read"]).run({ token: "t", auth: {} }, {});
 
     assert.deepEqual(result, { ok: false, status: 403, error: "Forbidden" });
+  });
+});
+
+describe("profession bundle tools (M7)", () => {
+  const PARTNER = ["customers.read", "obligations.read", "obligations.update", "engagements.read", "fees.update", "documents.generate"];
+  const CA = { key: "ca-practice", capabilities: ["engagements", "obligations", "documents", "vault"], vocabulary: { client: { one: "Client", many: "Clients" }, obligation: { one: "Deadline", many: "Deadlines" } } };
+  const BUNDLE_TOOLS = ["list_obligations", "get_client_profile", "get_engagement", "update_obligation_status", "record_payment", "generate_document"];
+  const names = (permissions, bundle) => toolsFor(permissions, bundle).map((tool) => tool.name);
+
+  test("an organization without a bundle is offered none of them, whatever its permissions", () => {
+    // SUPER_ADMIN holds the capability permissions even without a bundle.
+    const offered = names(PARTNER, null);
+    for (const name of BUNDLE_TOOLS) assert.ok(!offered.includes(name), name);
+    assert.equal(getTool("list_obligations", PARTNER, null), null);
+  });
+
+  test("with the bundle, each needs its capability and its permission", () => {
+    const offered = names(PARTNER, CA);
+    for (const name of BUNDLE_TOOLS) assert.ok(offered.includes(name), name);
+
+    assert.ok(!names(PARTNER, { ...CA, capabilities: ["engagements"] }).includes("list_obligations"));
+    assert.ok(!names(["obligations.read"], CA).includes("update_obligation_status"));
+  });
+
+  test("the writes are confirmed, never run on the model's say-so", () => {
+    for (const name of ["update_obligation_status", "record_payment", "generate_document"]) {
+      assert.equal(getTool(name, PARTNER, CA).write, true, name);
+    }
+  });
+
+  test("no tool reaches the vault", () => {
+    for (const tool of TOOLS) {
+      assert.equal(/vault|credential|password|portal/i.test(tool.name), false, tool.name);
+      assert.equal(String(tool.run).includes("/vault"), false, tool.name);
+    }
+  });
+
+  test("the bundle's words reach the system prompt; nothing is added without one", () => {
+    const withBundle = systemPrompt({ role: "CA_PARTNER", bundle: CA }, []);
+    const without = systemPrompt({ role: "SUPER_ADMIN", bundle: null }, []);
+
+    assert.match(withBundle, /client: say "Client" \(plural "Clients"\)/);
+    assert.match(withBundle, /obligation: say "Deadline"/);
+    assert.equal(without.includes("its own words"), false);
   });
 });

@@ -4,6 +4,7 @@ const cors = require("cors");
 const chatRoutes = require("./routes/chatRoutes");
 const conversationRoutes = require("./routes/conversationRoutes");
 const mcpRoutes = require("./routes/mcpRoutes");
+const bundleRoutes = require("./routes/bundleRoutes");
 const requestLogger = require("./middleware/requestLogger");
 
 const app = express();
@@ -25,6 +26,7 @@ app.get("/health", (req, res) => {
 app.use("/", chatRoutes);
 app.use("/", conversationRoutes);
 app.use("/", mcpRoutes);
+app.use("/", bundleRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
