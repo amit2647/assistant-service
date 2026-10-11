@@ -19,7 +19,7 @@ async function authenticate(req, res, next) {
       });
     }
 
-    // Hydra's RS256 tokens or, during P1 only, legacy HS256 ones.
+    // Hydra's RS256 tokens only (verifyToken.js).
     const decoded = await verifyToken(token);
 
     req.auth = {

@@ -11,6 +11,12 @@ the database only to resolve access grants when authenticating.
 
 - Every tool is an HTTP call onto the owning service carrying the caller's own bearer token, so
   adding a tool never means duplicating a permission check.
+- **Known gap: external MCP clients cannot sign in yet.** Tokens are Ory Hydra's 5-minute RS256
+  access tokens, obtained by the browser's sign-in flow (see the parent's Auth model); the old
+  long-lived HS256 token a client could be given is gone (auth-hardening P2). Until the planned
+  MCP OAuth phase (Hydra as the MCP authorization server, decision 3 in
+  `~/.claude/plans/auth-hardening-hydra.md`), `POST /mcp` works for callers that hold a current
+  Hydra access token, not for clients such as Claude Desktop with a pasted bearer.
 - Each tool declares a `permission`. `toolsFor(permissions)` filters the catalog **before the model
   is invoked**, so the assistant has no vocabulary for features the user lacks — that, not the
   prompt, is what keeps it from offering or discussing them.
