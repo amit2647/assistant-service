@@ -1,6 +1,7 @@
 const { pool } = require("../config/database");
 const { embedOne } = require("./embedder");
 const vectorStore = require("./vectorStore");
+const settings = require("../config/settings");
 
 /*
  * Searching a person's past conversations.
@@ -16,14 +17,14 @@ const vectorStore = require("./vectorStore");
  * never surface another person's message or a deleted conversation.
  */
 
-const CANDIDATES = 40;
-const RESULTS = 20;
+const CANDIDATES = settings.searchCandidates;
+const RESULTS = settings.searchResults;
 
 /*
  * Below this cosine similarity MiniLM matches are mostly noise — short
  * unrelated sentences land around 0.1–0.2.
  */
-const MIN_SIMILARITY = 0.3;
+const MIN_SIMILARITY = settings.searchMinSimilarity;
 
 // Reciprocal rank fusion constant: dampens how much the very top rank dominates.
 const RRF_K = 60;
@@ -186,11 +187,11 @@ async function searchConversations(auth, query) {
  * sees — so it never repeats what is in context. Same rule as search: Qdrant
  * picks the ids, Postgres supplies the text after checking the owner.
  */
-const RECALL_LIMIT = 4;
+const RECALL_LIMIT = settings.recallLimit;
 
 // Stricter than search: these go into the prompt, so a weak match costs tokens
 // and can mislead the model.
-const RECALL_MIN_SIMILARITY = 0.4;
+const RECALL_MIN_SIMILARITY = settings.recallMinSimilarity;
 
 async function recall(conversationId, auth, question, beforeSeq) {
   const vector = await embedOne(question);

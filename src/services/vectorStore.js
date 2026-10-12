@@ -1,4 +1,5 @@
 const { DIMENSIONS } = require("./embedder");
+const settings = require("../config/settings");
 
 /*
  * Qdrant, over its REST API.
@@ -45,7 +46,7 @@ async function call(method, path, body) {
     method,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(10 * 1000),
+    signal: AbortSignal.timeout(settings.vectorTimeoutMs),
   });
 
   const payload = await response.json().catch(() => null);

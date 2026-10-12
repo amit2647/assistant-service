@@ -17,6 +17,7 @@
  */
 
 const { searchHelp } = require("./knowledgeService");
+const settings = require("../config/settings");
 
 const LEAD = process.env.LEAD_SERVICE_URL || "http://lead-service:4001";
 const CUSTOMER = process.env.CUSTOMER_SERVICE_URL || "http://customer-service:4002";
@@ -37,7 +38,7 @@ async function callService(token, method, url, body) {
     },
     body: body === undefined ? undefined : JSON.stringify(body),
     // A hung service must not hold the conversation's turn lease open.
-    signal: AbortSignal.timeout(20 * 1000),
+    signal: AbortSignal.timeout(settings.toolTimeoutMs),
   });
 
   let payload = null;

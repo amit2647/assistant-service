@@ -2,6 +2,7 @@ const { pool } = require("../config/database");
 const { embed, MODEL } = require("./embedder");
 const vectorStore = require("./vectorStore");
 const { syncKnowledge } = require("./knowledgeService");
+const settings = require("../config/settings");
 
 /*
  * Drains the outbox (migration 012) into Qdrant.
@@ -19,9 +20,9 @@ const { syncKnowledge } = require("./knowledgeService");
  * a duplicate.
  */
 
-const BATCH = 32;
-const IDLE_MS = 2000;
-const MAX_BACKOFF_MS = 30000;
+const BATCH = settings.embeddingBatch;
+const IDLE_MS = settings.embeddingIdleMs;
+const MAX_BACKOFF_MS = settings.embeddingMaxBackoffMs;
 
 // Only prose is indexed. Tool results are raw CRM data under permissions that
 // can be revoked; a vector copy of them would outlive the revocation.

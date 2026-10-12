@@ -4,6 +4,7 @@ const path = require("path");
 
 const { embed, embedOne, MODEL } = require("./embedder");
 const vectorStore = require("./vectorStore");
+const settings = require("../config/settings");
 
 /*
  * Product help: the Markdown in /knowledge, searchable by meaning.
@@ -17,8 +18,8 @@ const KNOWLEDGE_DIR = path.join(__dirname, "..", "..", "knowledge");
 
 const COLLECTION = vectorStore.COLLECTIONS.knowledge;
 
-const RESULTS = 3;
-const MIN_SIMILARITY = 0.3;
+const RESULTS = settings.helpResults;
+const MIN_SIMILARITY = settings.helpMinSimilarity;
 
 function parseFrontMatter(text) {
   const match = text.match(/^---\n([\s\S]*?)\n---\n?/);

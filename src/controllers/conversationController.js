@@ -2,8 +2,9 @@ const conversations = require("../services/conversationService");
 const { runTurn, executeAction } = require("../services/chatService");
 const { toolsFor } = require("../services/toolCatalog");
 const { searchConversations, recall } = require("../services/searchService");
+const settings = require("../config/settings");
 
-const MAX_MESSAGE_CHARS = 8000;
+const MAX_MESSAGE_CHARS = settings.maxMessageChars;
 
 function bearer(req) {
   return (req.headers.authorization || "").split(" ")[1];

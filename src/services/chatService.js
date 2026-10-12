@@ -1,4 +1,5 @@
 const { toolsFor, getTool } = require("./toolCatalog");
+const settings = require("../config/settings");
 
 /*
  * Overridable only so the integration tests can point the assistant at a
@@ -22,7 +23,7 @@ const MAX_TOKENS = Number(process.env.OPENROUTER_MAX_TOKENS || 1024);
 
 // Each round trip is one model call plus its tool results. Reads chain (look up
 // a lead, then its emails); this stops a loop from running away.
-const MAX_STEPS = 6;
+const MAX_STEPS = settings.maxSteps;
 
 /*
  * The guard rails.
@@ -107,7 +108,7 @@ async function callModel(messages, tools) {
       Authorization: `Bearer ${apiKey}`,
       // OpenRouter attributes usage with these; both are optional.
       "HTTP-Referer": process.env.PUBLIC_APP_URL || "http://localhost:3000",
-      "X-Title": "OmniCore Assistant",
+      "X-Title": `${settings.appName} Assistant`,
     },
     body: JSON.stringify({
       model: MODEL,
@@ -117,7 +118,7 @@ async function callModel(messages, tools) {
       temperature: 0.2,
     }),
     // One slow provider call must not eat the whole turn budget.
-    signal: AbortSignal.timeout(60 * 1000),
+    signal: AbortSignal.timeout(settings.modelTimeoutMs),
   });
 
   const payload = await response.json().catch(() => null);
@@ -150,7 +151,7 @@ function describeResult(result) {
  * the conversation lease (LEASE_SECONDS in conversationService), so a turn that
  * is still running is never mistaken for a crashed one and taken over.
  */
-const TURN_BUDGET_MS = 4 * 60 * 1000;
+const TURN_BUDGET_MS = settings.turnBudgetMs;
 
 // Only what the provider needs back; the rest of the response is not stored.
 function storedCalls(calls) {

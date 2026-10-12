@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 
 const { pool } = require("../config/database");
+const settings = require("../config/settings");
 
 /*
  * Durable conversations.
@@ -20,11 +21,11 @@ const { pool } = require("../config/database");
  * service allows itself (see TURN_BUDGET_MS there), so a live turn is never
  * taken over; short enough that a crashed one frees the thread quickly.
  */
-const LEASE_SECONDS = 300;
+const LEASE_SECONDS = settings.leaseSeconds;
 
 // How much of the thread is replayed to the model each turn.
-const CONTEXT_MESSAGES = 40;
-const CONTEXT_CHARS = 8000;
+const CONTEXT_MESSAGES = settings.contextMessages;
+const CONTEXT_CHARS = settings.contextChars;
 
 const TITLE_LENGTH = 80;
 
